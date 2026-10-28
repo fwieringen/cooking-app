@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npm start)",
+      "Bash(npx playwright test:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [
+      "Bash(ftp:*)",
+      "Bash(lftp:*)",
+      "Bash(sftp:*)",
+      "Bash(scp:*)",
+      "Bash(curl -T:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push --force:*)",
+      "Bash(gh workflow run:*)",
+      "Edit(.github/workflows/**)"
+    ]
+  }
+}
