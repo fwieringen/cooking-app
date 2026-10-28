@@ -25,8 +25,8 @@ jobs:
     name: Standard test scenarios
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -51,12 +51,12 @@ jobs:
       name: test
       url: https://cooking-test.vanwieringen.org
     steps:
-      - uses: actions/checkout@v4
-      - run: ./scripts/build.sh
+      - uses: actions/checkout@v5
+      - run: bash scripts/build.sh
       - name: Upload via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
@@ -70,7 +70,7 @@ jobs:
     env:
       BASE_URL: https://cooking-test.vanwieringen.org
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check that the new version is live
         run: |
           expected=$(grep -oP "APP_VERSION = '\K[^']+" assets/js/config.js)
@@ -79,7 +79,7 @@ jobs:
             echo "Waiting for version $expected ..."; sleep 10
           done
           echo "::error::Version $expected not found on $BASE_URL"; exit 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -103,12 +103,12 @@ jobs:
       name: production
       url: https://cooking-prod.vanwieringen.org
     steps:
-      - uses: actions/checkout@v4
-      - run: ./scripts/build.sh
+      - uses: actions/checkout@v5
+      - run: bash scripts/build.sh
       - name: Upload via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
@@ -122,7 +122,7 @@ jobs:
     env:
       BASE_URL: https://cooking-prod.vanwieringen.org
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check that the new version is live
         run: |
           expected=$(grep -oP "APP_VERSION = '\K[^']+" assets/js/config.js)
@@ -131,7 +131,7 @@ jobs:
             echo "Waiting for version $expected ..."; sleep 10
           done
           echo "::error::Version $expected not found on $BASE_URL"; exit 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
