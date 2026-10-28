@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cooking.com – Restaurant reservations</title>
+  <meta name="description" content="Cooking.com (fictitious) – teaching demo for Business Process & Systems Design, University of Amsterdam.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div id="env-banner" class="env-banner" data-testid="env-banner" hidden></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#/" class="brand" aria-label="Cooking.com home"><img src="assets/img/logo.png" alt="Cooking.com" width="170" height="53"></a>
+      <nav class="mainnav" aria-label="Main">
+        <a href="#/">Restaurants</a>
+        <a href="#/deals">Package deals</a>
+        <a href="#/partner">For restaurants</a>
+      </nav>
+      <div class="nav-user" id="nav-user"></div>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <img src="assets/img/logo-white.png" alt="Cooking.com" width="140" height="44">
+        <p class="small">“To empower people to experience the universe of food.”</p>
+      </div>
+      <div>
+        <h4>Discover</h4>
+        <a href="#/search">All restaurants</a><a href="#/deals">Package deals</a><a href="#/partner">List your restaurant</a>
+      </div>
+      <div>
+        <h4>About</h4>
+        <a href="#/about">About this demo</a><a href="#/about">Terms &amp; privacy</a><a href="#" id="reset-demo" data-testid="reset-demo">Reset demo data</a>
+      </div>
+    </div>
+    <div class="container footer-bottom small">
+      <span>Cooking.com is a fictitious company — teaching demo, University of Amsterdam · Business Process &amp; Systems Design</span>
+      <span id="app-version" data-testid="app-version"></span>
+    </div>
+  </footer>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/validation.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
