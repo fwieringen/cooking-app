@@ -48,8 +48,6 @@ code { background: var(--sky-100); padding: 1px 5px; border-radius: 4px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 2px solid transparent; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s; }
 .btn-primary { background: var(--sky); color: var(--white); }
 .btn-primary:hover { background: #1593C6; }
-.btn-signin { background: var(--err); color: var(--white); }
-.btn-signin:hover { background: #A31F1F; }
 .btn-outline { border-color: var(--navy); color: var(--navy); background: var(--white); }
 .btn-outline:hover { background: var(--sky-100); }
 .btn-ghost { background: transparent; color: var(--navy); }
