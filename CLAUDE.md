@@ -25,6 +25,7 @@ Cooking.com is a fictitious company. The app is a static single-page app: HTML, 
 5. Run `npm test` and make sure **all** tests pass before committing. Never weaken, skip or delete an existing test to make a change pass – if a test seems wrong, stop and explain why.
 6. Bump `APP_VERSION` in `assets/js/config.js` (patch for fixes, minor for new features) and set `RELEASE_DATE`.
 7. Commit with a clear message and open a pull request that describes the change and the tests.
+8. Open the pull request with GitHub CLI (`gh pr create`). Never merge, approve or review a pull request yourself, and never change repository settings, secrets or variables.
 
 ## What you must never do
 - Never deploy, and never use FTP or any other way to upload files to a server. Deployment only happens through the GitHub Actions pipeline, and production requires approval by the product owner.
