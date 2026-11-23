@@ -1,6 +1,6 @@
 /* Cooking.com demo – application configuration */
 window.CK_CONFIG = (() => {
-  const APP_VERSION = '1.0.2';
+  const APP_VERSION = '1.1.0';
   const RELEASE_DATE = '2026-11-23';
 
   const host = window.location.hostname;

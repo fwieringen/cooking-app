@@ -33,3 +33,22 @@ test.describe('Search', () => {
     await expect(page.getByTestId('booking-box')).toBeVisible();
   });
 });
+
+test.describe('Explore by city', () => {
+  test('each city button on the home page shows the flag of its country', async ({ page }) => {
+    await fresh(page);
+    const cards = page.getByTestId('city-card');
+    await expect(cards).toHaveCount(7);
+    for (const [city, country] of [['The Hague', 'Netherlands'], ['Amsterdam', 'Netherlands'], ['Rotterdam', 'Netherlands'], ['Utrecht', 'Netherlands'],
+      ['Barcelona', 'Spain'], ['Sydney', 'Australia'], ['San Francisco', 'United States']]) {
+      const card = cards.filter({ hasText: city });
+      await expect(card.getByRole('img', { name: country })).toBeVisible();
+    }
+  });
+
+  test('clicking a city button still opens the search for that city', async ({ page }) => {
+    await fresh(page);
+    await page.getByTestId('city-card').filter({ hasText: 'Barcelona' }).click();
+    await expect(page.getByTestId('results-title')).toContainText('Barcelona: 1 restaurant found');
+  });
+});
