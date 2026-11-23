@@ -35,3 +35,13 @@ test.describe('Smoke test', () => {
     await expect(page.getByTestId('env-banner')).toContainText(/TEST ENVIRONMENT|DEVELOPMENT/);
   });
 });
+
+test.describe('Header sign-in button', () => {
+  test('the sign-in button in the header is red', async ({ page }) => {
+    await page.goto('/');
+    const btn = page.getByTestId('nav-login');
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveCSS('background-color', 'rgb(198, 40, 40)');
+    await expect(btn).toHaveCSS('color', 'rgb(255, 255, 255)');
+  });
+});
