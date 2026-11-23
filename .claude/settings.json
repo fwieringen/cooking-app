@@ -8,7 +8,12 @@
       "Bash(git diff:*)",
       "Bash(git checkout -b:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)"
     ],
     "deny": [
       "Bash(ftp:*)",
@@ -19,7 +24,16 @@
       "Bash(git push origin main:*)",
       "Bash(git push --force:*)",
       "Bash(gh workflow run:*)",
-      "Edit(.github/workflows/**)"
+      "Edit(.github/workflows/**)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh api:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh variable:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh run rerun:*)",
+      "Edit(.claude/**)",
+      "Edit(CLAUDE.md)"
     ]
   }
 }
