@@ -34,6 +34,23 @@
     e.textContent = msg; e.setAttribute('data-testid', 'error-' + name);
   };
   const clearErrors = (form) => qsa('.has-error', form).forEach(w => { w.classList.remove('has-error'); const e = qs('.error', w); if (e) e.remove(); });
+  // Small inline SVG flags for the city cards (flag emoji do not render on Windows)
+  const COUNTRY_NAMES = { NL: 'Netherlands', ES: 'Spain', AU: 'Australia', US: 'United States' };
+  const FLAG_SVG = {
+    NL: '<rect width="9" height="6" fill="#21468B"/><rect width="9" height="4" fill="#fff"/><rect width="9" height="2" fill="#AE1C28"/>',
+    ES: '<rect width="9" height="6" fill="#AA151B"/><rect y="1.5" width="9" height="3" fill="#F1BF00"/>',
+    AU: '<rect width="9" height="6" fill="#00008B"/>'
+      + '<svg width="4.5" height="3" viewBox="0 0 10 5"><path d="M0 0L10 5M10 0L0 5" stroke="#fff" stroke-width="1"/><path d="M0 0L10 5M10 0L0 5" stroke="#E4002B" stroke-width=".4"/>'
+      + '<path d="M5 0V5M0 2.5H10" stroke="#fff" stroke-width="1.67"/><path d="M5 0V5M0 2.5H10" stroke="#E4002B" stroke-width="1"/></svg>'
+      + '<g fill="#fff"><circle cx="2.25" cy="4.5" r=".55"/><circle cx="6.75" cy="5" r=".3"/><circle cx="5.6" cy="2.7" r=".3"/><circle cx="6.75" cy="1" r=".3"/><circle cx="7.9" cy="2.3" r=".3"/><circle cx="7.3" cy="3.3" r=".18"/></g>',
+    US: '<rect width="9" height="6" fill="#B22234"/>'
+      + [1, 3, 5, 7, 9, 11].map(i => `<rect y="${(i * 6 / 13).toFixed(3)}" width="9" height="${(6 / 13).toFixed(3)}" fill="#fff"/>`).join('')
+      + '<rect width="3.6" height="3.23" fill="#3C3B6E"/><g fill="#fff">'
+      + [0, 1, 2, 3].flatMap(r => [0, 1, 2, 3, 4].map(c => `<circle cx="${(0.4 + c * 0.7).toFixed(2)}" cy="${(0.4 + r * 0.8).toFixed(2)}" r=".18"/>`)).join('') + '</g>',
+  };
+  const flag = (code) => FLAG_SVG[code]
+    ? `<svg class="city-flag" viewBox="0 0 9 6" width="27" height="18" role="img" aria-label="${esc(COUNTRY_NAMES[code] || code)}" data-testid="city-flag">${FLAG_SVG[code]}</svg>`
+    : '';
   const thumb = (r, size = '') => {
     const c = cuisine(r.cuisine);
     return `<div class="thumb ${size}" style="--from:${c.from};--to:${c.to}" aria-hidden="true"><span>${c.emoji}</span></div>`;
@@ -109,7 +126,7 @@
     }
     const cityCards = D.cities.map(c => {
       const n = D.restaurants.filter(r => r.city === c.name).length;
-      return `<a class="city-card" href="#/search?city=${encodeURIComponent(c.name)}"><strong>${esc(c.name)}</strong><span>${n} restaurant${n === 1 ? '' : 's'}</span></a>`;
+      return `<a class="city-card" href="#/search?city=${encodeURIComponent(c.name)}" data-testid="city-card">${flag(c.country)}<strong>${esc(c.name)}</strong><span>${n} restaurant${n === 1 ? '' : 's'}</span></a>`;
     }).join('');
     app.innerHTML = `
       <section class="hero">

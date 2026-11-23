@@ -93,6 +93,7 @@ code { background: var(--sky-100); padding: 1px 5px; border-radius: 4px; }
 .section-head a { font-weight: 700; text-decoration: none; }
 .city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .city-card { background: linear-gradient(160deg, var(--navy), var(--sky)); color: var(--white); text-decoration: none; padding: 26px 16px; border-radius: var(--radius); display: flex; flex-direction: column; }
+.city-flag { display: block; margin-bottom: 10px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.6), 0 1px 3px rgba(0,0,0,.25); overflow: hidden; }
 .city-card strong { font-size: 1.1rem; }
 .city-card span { opacity: .85; font-size: .9rem; }
 .usp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
