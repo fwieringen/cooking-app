@@ -11,6 +11,7 @@ window.CK_DATA = (() => {
     modern:    { label: 'Modern Dutch',  emoji: '🧀', from: '#F9C74F', to: '#F3722C' },
     mexican:   { label: 'Mexican',       emoji: '🌮', from: '#F8961E', to: '#43AA8B' },
     spanish:   { label: 'Spanish',       emoji: '🥘', from: '#F94144', to: '#F9C74F' },
+    foodhall:  { label: 'Food hall',     emoji: '🍽️', from: '#21A8DF', to: '#6B1F5C' },
   };
 
   const cities = [
@@ -18,6 +19,7 @@ window.CK_DATA = (() => {
     { name: 'Amsterdam',     country: 'NL', currency: 'EUR' },
     { name: 'Rotterdam',     country: 'NL', currency: 'EUR' },
     { name: 'Utrecht',       country: 'NL', currency: 'EUR' },
+    { name: 'Hilversum',     country: 'NL', currency: 'EUR' },
     { name: 'Barcelona',     country: 'ES', currency: 'EUR' },
     { name: 'Sydney',        country: 'AU', currency: 'AUD' },
     { name: 'San Francisco', country: 'US', currency: 'USD' },
@@ -60,6 +62,10 @@ window.CK_DATA = (() => {
       address: 'Oudegracht 210, 3511 NR Utrecht', hours: 'Tue–Sat 17:30–22:30',
       description: 'French bistro classics in a 14th-century wharf cellar right on the canal.',
       signature: 'Duck confit with pommes sarladaises', menus: ['À la carte', 'Menu du jour'], tags: ['Romantic', 'Canal side'] },
+    { id: 'r451', name: 'MOUT', city: 'Hilversum', cuisine: 'foodhall', price: 2, rating: 8.4, reviews: 287, seats: 220,
+      address: 'Kerkstraat 63, 1211 CL Hilversum', hours: 'Daily 11:00–23:00',
+      description: 'Food hall in the heart of Hilversum with a dozen kitchens under one roof, a central bar and long shared tables.',
+      signature: 'Mix and match dishes from different food stands', menus: ['Food stands', 'Drinks menu'], tags: ['Group dining', 'Casual'] },
     { id: 'r501', name: 'Taberna del Born', city: 'Barcelona', cuisine: 'spanish', price: 2, rating: 8.6, reviews: 2210, seats: 44,
       address: 'Carrer de l’Argenteria 41, 08003 Barcelona', hours: 'Daily 13:00–00:00',
       description: 'Tapas and natural wines in the heart of El Born.',
