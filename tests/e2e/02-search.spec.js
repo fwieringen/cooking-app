@@ -34,12 +34,43 @@ test.describe('Search', () => {
   });
 });
 
+test.describe('Food hall in Hilversum', () => {
+  test.beforeEach(async ({ page }) => fresh(page));
+
+  test('searching Hilversum finds the MOUT food hall', async ({ page }) => {
+    await page.getByTestId('search-city').selectOption('Hilversum');
+    await page.getByTestId('search-submit').click();
+    await expect(page.getByTestId('results-title')).toContainText('Hilversum: 1 restaurant found');
+    await expect(page.getByTestId('result').first()).toContainText('MOUT');
+    await expect(page.getByTestId('result').first()).toContainText('Food hall');
+  });
+
+  test('the food hall cuisine filter shows MOUT', async ({ page }) => {
+    await page.goto('/#/search');
+    await page.getByTestId('filter-cuisine').selectOption('foodhall');
+    await expect(page.getByTestId('result')).toHaveCount(1);
+    await expect(page.getByTestId('result').first()).toContainText('MOUT');
+  });
+
+  test('the MOUT detail page can be opened and booked', async ({ page }) => {
+    await page.goto('/#/restaurant/r451');
+    await expect(page.getByTestId('restaurant-name')).toHaveText('MOUT');
+    await expect(page.getByText('Hilversum').first()).toBeVisible();
+    await expect(page.getByTestId('booking-box')).toBeVisible();
+  });
+
+  test('the Hilversum city button opens the search for Hilversum', async ({ page }) => {
+    await page.getByTestId('city-card').filter({ hasText: 'Hilversum' }).click();
+    await expect(page.getByTestId('results-title')).toContainText('Hilversum: 1 restaurant found');
+  });
+});
+
 test.describe('Explore by city', () => {
   test('each city button on the home page shows the flag of its country', async ({ page }) => {
     await fresh(page);
     const cards = page.getByTestId('city-card');
-    await expect(cards).toHaveCount(7);
-    for (const [city, country] of [['The Hague', 'Netherlands'], ['Amsterdam', 'Netherlands'], ['Rotterdam', 'Netherlands'], ['Utrecht', 'Netherlands'],
+    await expect(cards).toHaveCount(8);
+    for (const [city, country] of [['The Hague', 'Netherlands'], ['Amsterdam', 'Netherlands'], ['Rotterdam', 'Netherlands'], ['Utrecht', 'Netherlands'], ['Hilversum', 'Netherlands'],
       ['Barcelona', 'Spain'], ['Sydney', 'Australia'], ['San Francisco', 'United States']]) {
       const card = cards.filter({ hasText: city });
       await expect(card.getByRole('img', { name: country })).toBeVisible();
