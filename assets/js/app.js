@@ -74,6 +74,14 @@
     const m = r.hours.match(/(\d{2}):(\d{2})/); const open = m ? m[0] : '00:00';
     return D.timeSlots.filter(t => t >= open);
   };
+  // Time slots for a package deal (dinner only)
+  const dealSlotsFor = (r) => slotsFor(r).filter(t => t >= '17:30');
+  const weekdayName = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' });
+  // First date at least `minDays` ahead on which the restaurant is open
+  const nextOpenDateISO = (r, minDays) => {
+    for (let i = minDays; i < minDays + 7; i++) if (V.openOn(r.hours, addDaysISO(i))) return addDaysISO(i);
+    return addDaysISO(minDays);
+  };
   const scoreBadge = (r) => `<span class="score" title="Guest rating">${r.rating.toFixed(1)}</span>`;
   const scoreWord = (s) => s >= 9 ? 'Exceptional' : s >= 8.5 ? 'Superb' : s >= 8 ? 'Very good' : 'Good';
 
@@ -225,8 +233,10 @@
     const cuisineOpts = Object.entries(D.cuisines).map(([k, c]) => `<option value="${k}" ${p.cuisine === k ? 'selected' : ''}>${c.label}</option>`).join('');
     const results = list.map(r => {
       const left = r.seats - S.bookedGuests(r.id, date, time);
-      const open = slotsFor(r).includes(time);
-      const avail = !open ? `<div class="avail no" data-testid="availability">Not open at ${esc(time)}</div>`
+      const openDay = V.openOn(r.hours, date);
+      const open = openDay && slotsFor(r).includes(time);
+      const avail = !openDay ? `<div class="avail no" data-testid="availability">Not open at ${esc(time)} (closed on ${esc(weekdayName(date))}s)</div>`
+        : !open ? `<div class="avail no" data-testid="availability">Not open at ${esc(time)}</div>`
         : left >= guests && !slotInPast(date, time)
         ? `<div class="avail ok" data-testid="availability">✓ Available at ${esc(time)} for ${guests}</div>`
         : `<div class="avail no" data-testid="availability">${slotInPast(date, time) ? 'No longer available at ' : 'Fully booked at '}${esc(time)}</div>`;
@@ -323,9 +333,15 @@
       </div>`;
 
     const f = qs('#book-form');
-    let chosen = p.time || null;
+    // Only a time this restaurant offers can be preselected from the link
+    let chosen = V.oneOf(p.time, slotsFor(r)) ? p.time : null;
     const drawSlots = () => {
       const g = Number(f.guests.value);
+      if (!V.openOn(r.hours, f.date.value)) {
+        chosen = null;
+        qs('#slots').innerHTML = `<p class="muted small" data-testid="closed-day">${esc(r.name)} is closed on ${esc(weekdayName(f.date.value))}s (${esc(r.hours)}). Please choose another date.</p>`;
+        return;
+      }
       qs('#slots').innerHTML = slotsFor(r).map(t => {
         const left = r.seats - S.bookedGuests(r.id, f.date.value, t);
         const ok = left >= g && !slotInPast(f.date.value, t);
@@ -346,7 +362,10 @@
       }
       let ok = true;
       if (!V.reservationDate(f.date.value, C.bookingHorizonDays)) { fieldError(f, 'date', `Choose a date between today and ${C.bookingHorizonDays} days ahead.`); ok = false; }
+      else if (!V.openOn(r.hours, f.date.value)) { fieldError(f, 'date', `The restaurant is closed on this day (${r.hours}).`); ok = false; }
       if (!V.guests(g, C.maxGuests)) { fieldError(f, 'guests', `Between 1 and ${C.maxGuests} guests.`); ok = false; }
+      // Opening-hours control: the time must be one this restaurant offers
+      if (chosen && !V.oneOf(chosen, slotsFor(r))) chosen = null;
       if (!chosen) { const s = qs('#slots').closest('.field'); s.classList.add('has-error'); s.insertAdjacentHTML('beforeend', '<div class="error" data-testid="error-time">Please choose a time.</div>'); ok = false; }
       if (!ok) return;
       // Capacity control: re-check availability at the moment of booking
@@ -422,8 +441,8 @@
     const vouchers = usableVouchers(u);
     return `
       <form id="checkout" novalidate data-testid="checkout-form">
-        <label class="field"><span>Date</span><input type="date" name="date" min="${todayISO()}" max="${addDaysISO(C.bookingHorizonDays)}" value="${addDaysISO(7)}" data-testid="deal-date"></label>
-        <label class="field"><span>Time</span><select name="time" data-testid="deal-time">${slotsFor(restaurant(d.restaurantId)).filter(t => t >= '17:30').map(t => `<option ${t === '19:00' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="field"><span>Date</span><input type="date" name="date" min="${todayISO()}" max="${addDaysISO(C.bookingHorizonDays)}" value="${nextOpenDateISO(restaurant(d.restaurantId), 7)}" data-testid="deal-date"></label>
+        <label class="field"><span>Time</span><select name="time" data-testid="deal-time">${dealSlotsFor(restaurant(d.restaurantId)).map(t => `<option ${t === '19:00' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field"><span>Payment method</span><select name="method" data-testid="pay-method">
           ${saved}
           <option value="card">Credit card</option>
@@ -462,13 +481,20 @@
     };
     f.onsubmit = (e) => {
       e.preventDefault(); clearErrors(f);
+      // Signed out meanwhile (session expired or signed out in another tab)
+      if (!S.currentUser()) { sessionStorageSet('ck_return', '#/deal/' + d.id); return go('#/login'); }
       let ok = true;
       if (!V.reservationDate(f.date.value, C.bookingHorizonDays)) { fieldError(f, 'date', 'Choose a valid date.'); ok = false; }
+      else if (!V.openOn(r.hours, f.date.value)) { fieldError(f, 'date', `The restaurant is closed on this day (${r.hours}).`); ok = false; }
       const guests = d.persons;
-      if (slotInPast(f.date.value, f.time.value)) { fieldError(f, 'time', 'This time has already passed. Choose a later time.'); ok = false; }
+      // Opening-hours control: only the dinner times we offer for this deal
+      if (!V.oneOf(f.time.value, dealSlotsFor(r))) { fieldError(f, 'time', 'Choose one of the offered times.'); ok = false; }
+      else if (slotInPast(f.date.value, f.time.value)) { fieldError(f, 'time', 'This time has already passed. Choose a later time.'); ok = false; }
       else if (r.seats - S.bookedGuests(r.id, f.date.value, f.time.value) < guests) { fieldError(f, 'time', 'This time is fully booked. Choose another time.'); ok = false; }
       const m = f.method.value;
-      if (m === 'card') {
+      // Payment control: only methods we offer, or a card this customer saved (allow-list)
+      if (!V.paymentMethod(m, (S.currentUser().paymentMethods || []).map(pm => pm.token))) { fieldError(f, 'method', 'Choose one of the offered payment methods.'); ok = false; }
+      else if (m === 'card') {
         if (!V.required(f.cardName.value)) { fieldError(f, 'cardName', 'Enter the name on the card.'); ok = false; }
         if (!V.cardNumber(f.cardNumber.value)) { fieldError(f, 'cardNumber', 'This card number is not valid.'); ok = false; }
         if (!V.cardExpiry(f.cardExpiry.value)) { fieldError(f, 'cardExpiry', 'Enter a valid expiry date that is not in the past.'); ok = false; }
@@ -963,5 +989,11 @@
     toast('Demo data has been reset.'); go('#/'); route();
   };
   window.addEventListener('hashchange', route);
+  // Another tab signed in or out: show the current state here as well
+  S.onExternalChange(({ sessionChanged }) => {
+    if (!sessionChanged) return;
+    toast(S.currentUser() ? 'You signed in on another tab.' : 'You were signed out on another tab.', 'info');
+    route();
+  });
   route();
 })();

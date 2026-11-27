@@ -102,5 +102,24 @@ window.CK_VALIDATE = (() => {
   const canCancel = (reservation, userId, todayIso) =>
     !!reservation && reservation.userId === userId && reservation.status === 'confirmed' && reservation.date >= todayIso;
 
-  return { isoDate, oneOf, canCancel, referralCode, voucherUsable, email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
+  // Payment method must be one we offer, or a card the customer saved earlier (allow-list)
+  const PAYMENT_METHODS = ['card', 'ideal', 'paypal', 'applepay'];
+  const paymentMethod = (v, savedTokens = []) =>
+    PAYMENT_METHODS.includes(v) || (typeof v === 'string' && v.startsWith('saved:') && savedTokens.includes(v.slice(6)));
+
+  // Opening days, read from the opening hours text, e.g. "Daily 12:00–22:30" or "Tue–Sat 17:30–23:00".
+  // If the days cannot be read, the restaurant counts as open (we never block bookings by mistake).
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const openOn = (hours, isoDateValue) => {
+    if (!isoDate(isoDateValue)) return false;
+    const h = trim(hours);
+    if (/^daily\b/i.test(h)) return true;
+    const m = h.match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s*[–-]\s*(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b/);
+    if (!m) return true;
+    const day = new Date(isoDateValue + 'T00:00:00Z').getUTCDay();
+    const from = WEEKDAYS.indexOf(m[1]), to = WEEKDAYS.indexOf(m[2]);
+    return from <= to ? day >= from && day <= to : day >= from || day <= to;   // ranges may wrap, e.g. Fri–Mon
+  };
+
+  return { paymentMethod, openOn, isoDate, oneOf, canCancel, referralCode, voucherUsable, email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
 })();
