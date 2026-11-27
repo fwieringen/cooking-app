@@ -65,12 +65,36 @@ test.describe('Food hall in Hilversum', () => {
   });
 });
 
+test.describe('Brasserie in IJsselstein', () => {
+  test.beforeEach(async ({ page }) => fresh(page));
+
+  test('searching IJsselstein finds De Kloostertuin', async ({ page }) => {
+    await page.getByTestId('search-city').selectOption('IJsselstein');
+    await page.getByTestId('search-submit').click();
+    await expect(page.getByTestId('results-title')).toContainText('IJsselstein: 1 restaurant found');
+    await expect(page.getByTestId('result').first()).toContainText('De Kloostertuin');
+    await expect(page.getByTestId('result').first()).toContainText('Modern Dutch');
+  });
+
+  test('the De Kloostertuin detail page shows the address and can be booked', async ({ page }) => {
+    await page.goto('/#/restaurant/r461');
+    await expect(page.getByTestId('restaurant-name')).toHaveText('De Kloostertuin');
+    await expect(page.getByText('Benschopperstraat 43').first()).toBeVisible();
+    await expect(page.getByTestId('booking-box')).toBeVisible();
+  });
+
+  test('the IJsselstein city button opens the search for IJsselstein', async ({ page }) => {
+    await page.getByTestId('city-card').filter({ hasText: 'IJsselstein' }).click();
+    await expect(page.getByTestId('results-title')).toContainText('IJsselstein: 1 restaurant found');
+  });
+});
+
 test.describe('Explore by city', () => {
   test('each city button on the home page shows the flag of its country', async ({ page }) => {
     await fresh(page);
     const cards = page.getByTestId('city-card');
-    await expect(cards).toHaveCount(8);
-    for (const [city, country] of [['The Hague', 'Netherlands'], ['Amsterdam', 'Netherlands'], ['Rotterdam', 'Netherlands'], ['Utrecht', 'Netherlands'], ['Hilversum', 'Netherlands'],
+    await expect(cards).toHaveCount(9);
+    for (const [city, country] of [['The Hague', 'Netherlands'], ['Amsterdam', 'Netherlands'], ['Rotterdam', 'Netherlands'], ['Utrecht', 'Netherlands'], ['Hilversum', 'Netherlands'], ['IJsselstein', 'Netherlands'],
       ['Barcelona', 'Spain'], ['Sydney', 'Australia'], ['San Francisco', 'United States']]) {
       const card = cards.filter({ hasText: city });
       await expect(card.getByRole('img', { name: country })).toBeVisible();
