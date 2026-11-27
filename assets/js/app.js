@@ -18,7 +18,15 @@
   const parseHash = () => {
     const raw = location.hash.replace(/^#\/?/, '');
     const [path, query = ''] = raw.split('?');
-    return { parts: path.split('/').filter(Boolean), params: Object.fromEntries(new URLSearchParams(query)) };
+    return { parts: path.split('/').filter(Boolean), params: safeParams(Object.fromEntries(new URLSearchParams(query))) };
+  };
+  // URL parameters can be crafted by anyone who sends a link: drop date, time and guests values that are not valid
+  const safeParams = (p) => {
+    const out = { ...p };
+    if ('date' in out && !V.isoDate(out.date)) delete out.date;
+    if ('time' in out && !V.oneOf(out.time, D.timeSlots)) delete out.time;
+    if ('guests' in out && !V.guests(Number(out.guests), C.maxGuests)) delete out.guests;
+    return out;
   };
   const toast = (msg, type = 'ok') => {
     const t = document.createElement('div');
@@ -218,12 +226,12 @@
     const results = list.map(r => {
       const left = r.seats - S.bookedGuests(r.id, date, time);
       const open = slotsFor(r).includes(time);
-      const avail = !open ? `<div class="avail no" data-testid="availability">Not open at ${time}</div>`
+      const avail = !open ? `<div class="avail no" data-testid="availability">Not open at ${esc(time)}</div>`
         : left >= guests && !slotInPast(date, time)
-        ? `<div class="avail ok" data-testid="availability">✓ Available at ${time} for ${guests}</div>`
-        : `<div class="avail no" data-testid="availability">${slotInPast(date, time) ? 'No longer available at ' : 'Fully booked at '}${time}</div>`;
+        ? `<div class="avail ok" data-testid="availability">✓ Available at ${esc(time)} for ${guests}</div>`
+        : `<div class="avail no" data-testid="availability">${slotInPast(date, time) ? 'No longer available at ' : 'Fully booked at '}${esc(time)}</div>`;
       return `
-      <a class="result" href="#/restaurant/${r.id}?date=${date}&time=${time}&guests=${guests}" data-testid="result" data-id="${r.id}">
+      <a class="result" href="#/restaurant/${r.id}?${esc(new URLSearchParams({ date, time, guests }).toString())}" data-testid="result" data-id="${r.id}">
         ${thumb(r, 'thumb-lg')}
         <div class="result-body">
           <h3>${esc(r.name)}</h3>
@@ -254,7 +262,7 @@
         </aside>
         <section>
           <h1 class="h2" data-testid="results-title">${esc(p.city || 'All destinations')}: ${list.length} restaurant${list.length === 1 ? '' : 's'} found</h1>
-          <p class="muted">${fmtDate(date)} · ${time} · ${guests} guest${guests === 1 ? '' : 's'}</p>
+          <p class="muted">${esc(fmtDate(date))} · ${esc(time)} · ${guests} guest${guests === 1 ? '' : 's'}</p>
           <div class="results">${results || '<div class="empty" data-testid="no-results">No restaurants match your filters. Try another city or cuisine.</div>'}</div>
         </section>
       </div>`;
@@ -400,11 +408,12 @@
           </div>
           <aside class="booking-box">
             <div class="price big">${money(d.price, cur)} <small>for ${d.persons} persons</small></div>
-            ${user ? checkoutForm(d) : `<p>Please sign in to book this package deal.</p><a class="btn btn-primary btn-block" href="#/login" data-testid="deal-login" onclick="sessionStorage.setItem('ck_return','#/deal/${d.id}')">Sign in to continue</a>`}
+            ${user ? checkoutForm(d) : `<p>Please sign in to book this package deal.</p><a class="btn btn-primary btn-block" href="#/login" data-testid="deal-login">Sign in to continue</a>`}
           </aside>
         </div>
       </div>`;
     if (user) bindCheckout(d, r, cur);
+    else qs('[data-testid="deal-login"]').onclick = () => sessionStorageSet('ck_return', '#/deal/' + d.id);
   }
 
   function checkoutForm(d) {
@@ -471,7 +480,7 @@
       if (!ok) return;
 
       const u = S.currentUser();
-      let methodLabel, last4 = null, brand = null, token = 'tok_' + Math.random().toString(36).slice(2, 12);
+      let methodLabel, last4 = null, brand = null, token = S.token('tok');
       if (m === 'card') {
         const num = f.cardNumber.value.replace(/\D/g, '');
         last4 = num.slice(-4); brand = num.startsWith('4') ? 'Visa' : /^5[1-5]/.test(num) ? 'Mastercard' : num.startsWith('3') ? 'Amex' : 'Card';
@@ -606,7 +615,9 @@
           else referrerId = referrer.id;
         }
         if (!ok) return;
-        const pwHash = await S.hash(v.password);
+        let pwHash;
+        try { pwHash = await S.hashPassword(v.password); }
+        catch (err) { return fieldError(f, 'password', 'Your password can only be stored safely over a secure (HTTPS) connection.'); }
         delete v.password; delete v.terms; delete v.privacy; delete v.referral;
         sessionSet('ck_reg', { ...draft, ...v, pwHash, referrerId, acceptedTermsAt: S.now() });
         go('#/register?step=taste');
@@ -647,7 +658,7 @@
         if (!V.cvc(f.cardCvc.value)) { fieldError(f, 'cardCvc', 'Enter the 3 or 4 digit security code.'); ok = false; }
         if (!ok) return;
         const num = f.cardNumber.value.replace(/\D/g, '');
-        finish([{ token: 'tok_' + Math.random().toString(36).slice(2, 12), brand: num.startsWith('4') ? 'Visa' : 'Card', last4: num.slice(-4) }]);
+        finish([{ token: S.token('tok'), brand: num.startsWith('4') ? 'Visa' : 'Card', last4: num.slice(-4) }]);
       };
     }
   }
@@ -666,8 +677,22 @@
     const f = qs('#f');
     f.onsubmit = async (e) => {
       e.preventDefault(); clearErrors(f);
-      const u = S.findUserByEmail(f.id.value.trim()) || S.findUserByUsername(f.id.value.trim());
-      if (!u || u.pwHash !== await S.hash(f.password.value)) { S.log('login_failed'); return fieldError(f, 'password', 'The combination of e-mail/username and password is incorrect.'); }
+      const entered = f.id.value.trim();
+      const u = S.findUserByEmail(entered) || S.findUserByUsername(entered);
+      // Lock per account (e-mail and username count together), or per entered value if no such account exists
+      const key = u ? 'user:' + u.id : 'id:' + entered;
+      const lockedUntil = S.loginLockedUntil(key);
+      if (lockedUntil) {
+        const mins = Math.max(1, Math.ceil((Date.parse(lockedUntil) - Date.now()) / 60000));
+        return fieldError(f, 'password', `Too many failed attempts. Please try again in ${mins} minute${mins === 1 ? '' : 's'}.`);
+      }
+      let check;
+      try { check = u ? await S.verifyPassword(f.password.value, u.pwHash) : { ok: false }; }
+      catch (err) { return fieldError(f, 'password', 'Signing in is only possible over a secure (HTTPS) connection.'); }
+      if (!check.ok) { S.recordFailedLogin(key); return fieldError(f, 'password', 'The combination of e-mail/username and password is incorrect.'); }
+      S.clearFailedLogins(key);
+      // Upgrade an old unsalted password hash to the current salted one
+      if (check.legacy) { S.updateUser(u.id, { pwHash: await S.hashPassword(f.password.value) }); S.log('password_hash_upgraded', { userId: u.id }); }
       S.login(u.id); renderChrome(); toast(`Welcome back, ${u.firstName}!`);
       const back = sessionStorageGet('ck_return'); sessionStorageRemove('ck_return');
       go(back || '#/');
@@ -717,7 +742,7 @@
               <h2>Invite friends</h2>
               <p class="muted small">For every friend who creates an account with your code, you get ${C.referralDiscountPercent}% off a package deal.</p>
               <p>Your referral code<br><strong class="ref-code" data-testid="referral-code">${esc(refCode)}</strong></p>
-              <label class="field"><span>Invite link</span><input readonly value="${esc(inviteLink)}" data-testid="referral-link" onfocus="this.select()"></label>
+              <label class="field"><span>Invite link</span><input readonly value="${esc(inviteLink)}" data-testid="referral-link"></label>
               <button type="button" class="btn btn-outline btn-sm" id="copy-invite" data-testid="referral-copy">Copy invite link</button>
               <p class="small" data-testid="referral-count">Friends joined: <strong>${friends}</strong></p>
               <h3>My vouchers</h3>
@@ -728,7 +753,12 @@
           </aside>
         </div>
       </div>`;
-    qsa('[data-cancel]').forEach(b => b.onclick = () => { S.cancelReservation(b.dataset.cancel); toast('Your reservation has been cancelled.'); viewAccount(); });
+    qsa('[data-cancel]').forEach(b => b.onclick = () => {
+      if (S.cancelReservation(b.dataset.cancel, u.id, todayISO())) toast('Your reservation has been cancelled.');
+      else toast('This reservation can no longer be cancelled.', 'error');
+      viewAccount();
+    });
+    const link = qs('[data-testid="referral-link"]'); link.onfocus = () => link.select();
     qs('#copy-invite').onclick = async () => {
       try { await navigator.clipboard.writeText(inviteLink); toast('Invite link copied.'); }
       catch (e) { qs('[data-testid="referral-link"]').select(); toast('Select the link and copy it manually.', 'info'); }
@@ -901,6 +931,9 @@
     const { parts, params } = parseHash();
     const [page, id] = parts;
     window.scrollTo(0, 0);
+    // Session control: an expired session is ended here; an active one is extended
+    S.currentUser(); S.touchSession();
+    if (S.takeSessionExpired()) toast('Your session has expired. Please sign in again.', 'info');
     switch (page) {
       case undefined: viewHome(); break;
       case 'search': viewSearch(params); break;

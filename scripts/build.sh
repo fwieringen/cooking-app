@@ -4,6 +4,6 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 rm -rf dist
 mkdir -p dist
-cp index.html dist/
+cp index.html .htaccess dist/
 cp -r assets dist/
 echo "Built dist/ for version $(grep -oP "APP_VERSION = '\K[^']+" assets/js/config.js)"
