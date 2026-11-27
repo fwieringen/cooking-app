@@ -37,11 +37,11 @@ test.describe('Smoke test', () => {
 });
 
 test.describe('Header sign-in button', () => {
-  test('the sign-in button in the header is brand blue', async ({ page }) => {
+  test('the sign-in button in the header is red', async ({ page }) => {
     await page.goto('/');
     const btn = page.getByTestId('nav-login');
     await expect(btn).toBeVisible();
-    await expect(btn).toHaveCSS('background-color', 'rgb(33, 168, 223)');
+    await expect(btn).toHaveCSS('background-color', 'rgb(198, 40, 40)');
     await expect(btn).toHaveCSS('color', 'rgb(255, 255, 255)');
   });
 });
