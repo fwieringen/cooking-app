@@ -1,6 +1,6 @@
 /* Cooking.com demo – application configuration */
 window.CK_CONFIG = (() => {
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.3.1';
   const RELEASE_DATE = '2026-11-27';
 
   const host = window.location.hostname;
@@ -12,13 +12,15 @@ window.CK_CONFIG = (() => {
     APP_VERSION,
     RELEASE_DATE,
     environment,
-    hosts: {
-      production: 'cooking-prod.vanwieringen.org',
-      test: 'cooking-test.vanwieringen.org',
-    },
     maxGuests: 12,
     bookingHorizonDays: 90,
     referralDiscountPercent: 10,  // voucher for the referrer when a new client registers with their code
     voucherValidityDays: 365,
+    // Security settings
+    sessionIdleMinutes: 30,       // sign out after 30 minutes without activity
+    sessionMaxHours: 12,          // and always after 12 hours
+    maxFailedLogins: 5,           // failed sign-ins per account before a temporary lock
+    loginLockMinutes: 15,
+    passwordHashIterations: 600000, // PBKDF2-SHA256 (OWASP recommendation)
   };
 })();

@@ -12,8 +12,10 @@ window.CK_STORE = (() => {
     payments: [],           // only token + last 4 digits, never the full card number
     applications: [],       // restaurant sign-ups
     vouchers: [],           // referral discount vouchers
+    loginAttempts: {},      // failed sign-ins per account: { key: { count, first, lockedUntil } }
     audit: [],              // simple audit trail of important events
   });
+  const C = window.CK_CONFIG, V = window.CK_VALIDATE;
 
   let mem = null;
   const load = () => {
@@ -24,8 +26,23 @@ window.CK_STORE = (() => {
   };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch (e) { /* storage unavailable: keep in memory */ } };
 
-  const id = (prefix) => prefix + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  // Random characters from the browser's cryptographic random generator (not Math.random, which is predictable)
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const randomChars = (n) => {
+    let out = '';
+    while (out.length < n) {
+      for (const b of crypto.getRandomValues(new Uint8Array(n))) {
+        if (b < 252 && out.length < n) out += ALPHABET[b % 36];   // 252 = 7 × 36: avoids bias
+      }
+    }
+    return out;
+  };
+  // Human-readable reference shown to customers (reservation number, voucher, referral code)
+  const id = (prefix) => prefix + '-' + randomChars(6);
+  // Secret value nobody should be able to guess (verification and payment tokens): 32 chars ≈ 165 bits
+  const token = (prefix) => prefix + '_' + randomChars(32).toLowerCase();
   const now = () => new Date().toISOString();
+  const hex = (buf) => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
   const log = (event, detail = {}) => {
     const db = load();
@@ -34,36 +51,87 @@ window.CK_STORE = (() => {
     save();
   };
 
-  async function hash(text) {
-    try {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch (e) {
-      // Fallback for insecure contexts (plain http): NOT secure, demo only
-      let h = 0; for (const c of text) h = (h * 31 + c.charCodeAt(0)) | 0; return 'weak-' + h;
-    }
+  // ---- passwords: salted PBKDF2-SHA256, stored as "pbkdf2-sha256$<iterations>$<salt>$<hash>".
+  // Needs a secure context (HTTPS or localhost); there is deliberately no weak fallback any more.
+  const secureCrypto = () => !!(window.isSecureContext && crypto.subtle);
+  async function pbkdf2(password, saltHex, iterations) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    const salt = new Uint8Array(saltHex.match(/../g).map(h => parseInt(h, 16)));
+    return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256));
   }
+  async function hashPassword(password) {
+    if (!secureCrypto()) throw new Error('insecure-context');
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    const iterations = C.passwordHashIterations;
+    return `pbkdf2-sha256$${iterations}$${salt}$${await pbkdf2(password, salt, iterations)}`;
+  }
+  // Returns { ok, legacy }. Legacy = old unsalted hash from before v1.3.1, to be replaced after a successful sign-in.
+  async function verifyPassword(password, stored) {
+    if (!secureCrypto()) throw new Error('insecure-context');
+    const s = String(stored || '');
+    if (s.startsWith('pbkdf2-sha256$')) {
+      const [, iter, salt, expected] = s.split('$');
+      return { ok: (await pbkdf2(password, salt, Number(iter))) === expected, legacy: false };
+    }
+    if (/^[0-9a-f]{64}$/.test(s)) return { ok: hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password))) === s, legacy: true };
+    if (s.startsWith('weak-')) { let h = 0; for (const c of password) h = (h * 31 + c.charCodeAt(0)) | 0; return { ok: 'weak-' + h === s, legacy: true }; }
+    return { ok: false, legacy: false };
+  }
+
+  // ---- session expiry: idle timeout and maximum session length
+  let sessionExpired = false;
+  const sessionValid = (s, t = Date.now()) => {
+    const since = Date.parse(s.since), last = Date.parse(s.lastSeen || s.since);
+    return !isNaN(since) && !isNaN(last)
+      && t - last <= C.sessionIdleMinutes * 60000
+      && t - since <= C.sessionMaxHours * 3600000;
+  };
+
+  const attemptKey = (identifier) => String(identifier || '').trim().toLowerCase();
 
   return {
     get db() { return load(); },
-    save, id, now, log, hash,
+    save, id, token, now, log, hashPassword, verifyPassword, secureCrypto,
     reset() { mem = empty(); save(); },
 
     // ---- users & session
-    currentUser() { const db = load(); return db.session ? db.users.find(u => u.id === db.session.userId) || null : null; },
+    currentUser() {
+      const db = load();
+      if (!db.session) return null;
+      if (!sessionValid(db.session)) { log('session_expired'); db.session = null; save(); sessionExpired = true; return null; }
+      return db.users.find(u => u.id === db.session.userId) || null;
+    },
+    touchSession() { const db = load(); if (db.session && sessionValid(db.session)) { db.session.lastSeen = now(); save(); } },
+    takeSessionExpired() { const e = sessionExpired; sessionExpired = false; return e; },
     findUserByEmail(email) { return load().users.find(u => u.email.toLowerCase() === String(email).toLowerCase()); },
     findUserByUsername(name) { return load().users.find(u => u.username.toLowerCase() === String(name).toLowerCase()); },
     addUser(user) { const db = load(); db.users.push(user); save(); log('consumer_registered', { userId: user.id }); return user; },
     updateUser(id, patch) { const db = load(); const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(); return u; },
-    login(userId) { load().session = { userId, since: now() }; save(); log('login'); },
+    login(userId) { const t = now(); load().session = { userId, since: t, lastSeen: t }; save(); log('login'); },
     logout() { log('logout'); load().session = null; save(); },
+
+    // ---- protection against password guessing: temporary lock after too many failed sign-ins.
+    // Counted per entered e-mail/username, also for accounts that do not exist (so the lock reveals nothing).
+    loginLockedUntil(identifier) {
+      const a = load().loginAttempts[attemptKey(identifier)];
+      return a && a.lockedUntil && Date.parse(a.lockedUntil) > Date.now() ? a.lockedUntil : null;
+    },
+    recordFailedLogin(identifier) {
+      const db = load(), k = attemptKey(identifier), t = Date.now();
+      let a = db.loginAttempts[k];
+      if (!a || t - Date.parse(a.first) > C.loginLockMinutes * 60000) a = db.loginAttempts[k] = { count: 0, first: now() };
+      a.count++;
+      if (a.count >= C.maxFailedLogins) { a.lockedUntil = new Date(t + C.loginLockMinutes * 60000).toISOString(); a.count = 0; a.first = now(); log('login_locked'); }
+      save(); log('login_failed');
+    },
+    clearFailedLogins(identifier) { delete load().loginAttempts[attemptKey(identifier)]; save(); },
 
     // ---- email verification (simulated)
     startVerification(email, type) {
-      const token = id('V');
-      load().pending[email.toLowerCase()] = { token, type, at: now() }; save();
+      const t = token('vrf');
+      load().pending[email.toLowerCase()] = { token: t, type, at: now() }; save();
       log('verification_mail_sent', { type });
-      return token;
+      return t;
     },
     verify(email, token) {
       const p = load().pending[email.toLowerCase()];
@@ -79,9 +147,11 @@ window.CK_STORE = (() => {
         .reduce((s, r) => s + r.guests, 0);
     },
     addReservation(res) { const db = load(); db.reservations.push(res); save(); log('reservation_created', { reservationId: res.id }); return res; },
-    cancelReservation(resId) {
+    // Only the owner can cancel, only a confirmed reservation, and not after the date has passed
+    cancelReservation(resId, userId, todayIso) {
       const r = load().reservations.find(x => x.id === resId);
-      if (r) { r.status = 'cancelled'; r.cancelledAt = now(); save(); log('reservation_cancelled', { reservationId: resId }); }
+      if (!V.canCancel(r, userId, todayIso)) { log('reservation_cancel_refused', { reservationId: resId }); return null; }
+      r.status = 'cancelled'; r.cancelledAt = now(); save(); log('reservation_cancelled', { reservationId: resId });
       return r;
     },
     reservationsFor(userId) { return load().reservations.filter(r => r.userId === userId).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)); },

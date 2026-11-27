@@ -6,6 +6,9 @@
   <title>Cooking.com – Restaurant reservations</title>
   <meta name="description" content="Cooking.com (fictitious) – teaching demo for Business Process & Systems Design, University of Amsterdam.">
   <meta name="robots" content="noindex, nofollow">
+  <!-- Same policy as the Content-Security-Policy header in .htaccess (frame-ancestors only works as a header).
+       Keeps scripts limited to this site even if the server header is missing. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <link rel="icon" type="image/png" href="assets/img/favicon.png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="stylesheet" href="assets/css/styles.css">

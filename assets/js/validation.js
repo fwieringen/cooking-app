@@ -87,5 +87,20 @@ window.CK_VALIDATE = (() => {
   const voucherUsable = (voucher, userId, now = new Date()) =>
     !!voucher && voucher.userId === userId && voucher.status === 'issued' && new Date(voucher.validUntil) >= now;
 
-  return { referralCode, voucherUsable, email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
+  // ---- input from the URL (never trust it: it can be crafted by anyone who sends a link)
+  // Calendar date in YYYY-MM-DD format that really exists (no 2026-02-31)
+  const isoDate = (v) => {
+    const s = trim(v);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const d = new Date(s + 'T00:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0, 10) === s;
+  };
+  // Value must be one of a fixed list (e.g. the bookable time slots)
+  const oneOf = (v, list) => list.includes(v);
+
+  // A reservation can only be cancelled by its owner, while confirmed and not in the past
+  const canCancel = (reservation, userId, todayIso) =>
+    !!reservation && reservation.userId === userId && reservation.status === 'confirmed' && reservation.date >= todayIso;
+
+  return { isoDate, oneOf, canCancel, referralCode, voucherUsable, email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
 })();

@@ -31,7 +31,8 @@ assets/js/validation.js    validation rules = the application controls
 assets/js/store.js         browser storage, audit trail
 assets/js/app.js           pages and routing
 tests/e2e/                 standard test scenarios (Playwright)
-scripts/serve.js           tiny local web server
+scripts/serve.js           tiny local web server (sends the same security headers as .htaccess)
+.htaccess                  web server settings: security headers, no hidden files (deployed with the site)
 ```
 
 ## Run locally
@@ -53,6 +54,8 @@ BASE_URL=https://cooking-test.vanwieringen.org npm test
 4. **Reservations** – sign-in required, book/view/cancel, time slot required, capacity control
 5. **Package deals** – listing, sign-in required, card validation, card number never stored, iDEAL | Wero
 6. **Restaurant sign-up** – happy path with e-signature, invalid IBAN → manual review, tables ≤ seats, no skipping steps
+7. **Referral vouchers** – home-page promo, referral code and invite link, invalid code rejected, voucher earned, 10% discount used once
+8. **Security** – crafted search links (XSS), security headers and Content-Security-Policy, hidden files, salted password hashes, sign-in lock, session expiry, random tokens, cancel ownership
 
 ## Releasing
 Bump `APP_VERSION` in `assets/js/config.js` with every release; it is shown in the footer and in the test-environment banner.
