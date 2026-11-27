@@ -21,7 +21,7 @@ async function fresh(page) {
   await page.goto('/#/');
 }
 
-async function register(page, u = uniqueUser(), { card } = {}) {
+async function register(page, u = uniqueUser(), { card, referral } = {}) {
   await page.goto('/#/register');
   await page.getByTestId('reg-email').fill(u.email);
   await page.getByTestId('reg-email-submit').click();
@@ -34,6 +34,7 @@ async function register(page, u = uniqueUser(), { card } = {}) {
   await page.getByTestId('reg-phone').fill(u.phone);
   await page.getByTestId('reg-username').fill(u.username);
   await page.getByTestId('reg-password').fill(u.password);
+  if (referral) await page.getByTestId('reg-referral').fill(referral);
   await page.getByTestId('reg-terms').check();
   await page.getByTestId('reg-privacy').check();
   await page.getByTestId('reg-details-submit').click();

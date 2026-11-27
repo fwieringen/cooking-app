@@ -80,5 +80,12 @@ window.CK_VALIDATE = (() => {
     return d >= today && d <= max;
   };
 
-  return { email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
+  // Referral code: REF- followed by 6 letters/digits (case-insensitive input)
+  const referralCode = (v) => /^REF-[A-Z0-9]{6}$/.test(trim(v).toUpperCase());
+
+  // A voucher can be used once, only by its owner, and only before it expires
+  const voucherUsable = (voucher, userId, now = new Date()) =>
+    !!voucher && voucher.userId === userId && voucher.status === 'issued' && new Date(voucher.validUntil) >= now;
+
+  return { referralCode, voucherUsable, email, required, username, password, phone, postcode, cardNumber, cardExpiry, cvc, kvk, vatNL, iban, guests, reservationDate };
 })();
