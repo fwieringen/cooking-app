@@ -31,7 +31,7 @@ assets/js/validation.js    validation rules = the application controls
 assets/js/store.js         browser storage, audit trail
 assets/js/app.js           pages and routing
 tests/e2e/                 standard test scenarios (Playwright)
-scripts/serve.js           tiny local web server (sends the same security headers as .htaccess)
+scripts/serve.js           tiny local web server: only index.html and assets/, only on this computer, same security headers as .htaccess
 .htaccess                  web server settings: security headers, no hidden files (deployed with the site)
 ```
 
@@ -42,6 +42,7 @@ npx playwright install chromium   # first time only
 npm start                         # http://localhost:4173
 npm test                          # runs all standard test scenarios (desktop + mobile)
 ```
+The local server only accepts connections from this computer. To try the site on a phone on the same (trusted) network, start it with `HOST=0.0.0.0 npm start`.
 Run the tests against a deployed environment:
 ```bash
 BASE_URL=https://cooking-test.vanwieringen.org npm test
@@ -56,6 +57,7 @@ BASE_URL=https://cooking-test.vanwieringen.org npm test
 6. **Restaurant sign-up** – happy path with e-signature, invalid IBAN → manual review, tables ≤ seats, no skipping steps
 7. **Referral vouchers** – home-page promo, referral code and invite link, invalid code rejected, voucher earned, 10% discount used once
 8. **Security** – crafted search links (XSS), security headers and Content-Security-Policy, hidden files, salted password hashes, sign-in lock, session expiry, random tokens, cancel ownership
+9. **Pentest fixes** – several open tabs (voucher used once, sign-out and sign-in lock shared), only offered times and payment methods, opening days, local server refuses project files and malformed addresses
 
 ## Releasing
 Bump `APP_VERSION` in `assets/js/config.js` with every release; it is shown in the footer and in the test-environment banner.

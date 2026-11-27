@@ -1,6 +1,6 @@
 // Scenario 4 – Making, viewing and cancelling a reservation
 const { test, expect } = require('@playwright/test');
-const { fresh, register, book, isoInDays } = require('./helpers');
+const { fresh, register, book, isoInDays, isoInDaysOn, TUE_SAT } = require('./helpers');
 
 test.describe('Reservations', () => {
   test.beforeEach(async ({ page }) => fresh(page));
@@ -35,7 +35,7 @@ test.describe('Reservations', () => {
 
   test('a restaurant cannot be overbooked (capacity control)', async ({ page }) => {
     await register(page);
-    const date = isoInDays(5);
+    const date = isoInDaysOn(5, TUE_SAT);   // Sumi Kitchen is open Tue–Sat
     // Sumi Kitchen has 18 seats per time slot
     await book(page, 'r201', { date, guests: 12, time: '1930' });
     await expect(page.getByTestId('confirmation')).toBeVisible();

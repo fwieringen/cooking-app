@@ -17,14 +17,34 @@ window.CK_STORE = (() => {
   });
   const C = window.CK_CONFIG, V = window.CK_VALIDATE;
 
+  // Several tabs share the same localStorage. Every read checks whether another tab has saved newer data,
+  // so a tab never works with (and then saves) an old copy. Without this, a second open tab could use a
+  // voucher twice, undo a sign-out or a sign-in lock, and overwrite bookings made in the first tab.
   let mem = null;
+  let lastRaw;                                   // the stored text that `mem` was read from or saved as
+  const readRaw = () => { try { return localStorage.getItem(KEY); } catch (e) { return undefined; } };   // undefined = storage unavailable
   const load = () => {
-    if (mem) return mem;
-    try { mem = JSON.parse(localStorage.getItem(KEY)) || empty(); } catch (e) { mem = empty(); }
+    const raw = readRaw();
+    if (mem && (raw === undefined || raw === lastRaw)) return mem;
+    try { mem = (raw && JSON.parse(raw)) || empty(); } catch (e) { mem = empty(); }
+    lastRaw = raw;
     for (const [k, v] of Object.entries(empty())) if (!(k in mem)) mem[k] = v;
     return mem;
   };
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch (e) { /* storage unavailable: keep in memory */ } };
+  const save = () => {
+    const raw = JSON.stringify(mem);
+    try { localStorage.setItem(KEY, raw); lastRaw = raw; } catch (e) { /* storage unavailable: keep in memory */ }
+  };
+
+  // Tell the page when another tab changed the data, e.g. signed out
+  const listeners = [];
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY && e.key !== null) return;          // key null = storage was cleared
+    const before = mem && mem.session ? mem.session.userId : null;
+    const s = load().session;
+    const after = s ? s.userId : null;
+    listeners.forEach(fn => fn({ sessionChanged: before !== after }));
+  });
 
   // Random characters from the browser's cryptographic random generator (not Math.random, which is predictable)
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -93,6 +113,7 @@ window.CK_STORE = (() => {
     get db() { return load(); },
     save, id, token, now, log, hashPassword, verifyPassword, secureCrypto,
     reset() { mem = empty(); save(); },
+    onExternalChange(fn) { listeners.push(fn); },
 
     // ---- users & session
     currentUser() {

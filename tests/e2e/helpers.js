@@ -5,6 +5,13 @@ const isoInDays = (n) => {
   const d = new Date(); d.setDate(d.getDate() + n);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 };
+const weekday = (iso) => new Date(iso + 'T00:00:00Z').getUTCDay();   // 0 = Sunday … 6 = Saturday
+// First date at least `n` days ahead that falls on one of the given weekdays (e.g. when a restaurant is open)
+const isoInDaysOn = (n, weekdays) => {
+  for (let i = n; i < n + 7; i++) if (weekdays.includes(weekday(isoInDays(i)))) return isoInDays(i);
+  throw new Error('no matching weekday');
+};
+const TUE_SAT = [2, 3, 4, 5, 6];
 
 let counter = 0;
 const uniqueUser = () => {
@@ -58,4 +65,4 @@ async function book(page, restaurantId, { date = isoInDays(3), guests = 2, time 
   await page.getByTestId('book-submit').click();
 }
 
-module.exports = { isoInDays, uniqueUser, fresh, register, book };
+module.exports = { isoInDays, isoInDaysOn, weekday, TUE_SAT, uniqueUser, fresh, register, book };
