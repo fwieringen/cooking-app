@@ -45,3 +45,25 @@ test.describe('Header sign-in button', () => {
     await expect(btn).toHaveCSS('color', 'rgb(255, 255, 255)');
   });
 });
+
+test.describe('Fresh files after a release', () => {
+  test('page, scripts and styles are always checked for a newer version', async ({ request }) => {
+    for (const p of ['/', '/assets/js/config.js', '/assets/js/app.js', '/assets/css/styles.css']) {
+      const res = await request.get(p);
+      expect(res.status(), p).toBe(200);
+      expect(res.headers()['cache-control'], p).toContain('no-cache');
+    }
+  });
+
+  test('every asset link carries the current version number', async ({ request, page }) => {
+    const config = await (await request.get('/assets/js/config.js')).text();
+    const version = config.match(/APP_VERSION = '([^']+)'/)[1];
+    const html = await (await request.get('/')).text();
+    const links = [...html.matchAll(/(?:src|href)="(assets\/[^"]+)"/g)].map(m => m[1]);
+    expect(links.length).toBeGreaterThan(5);
+    for (const l of links) expect(l, l).toMatch(new RegExp(`\\?v=${version.replace(/\./g, '\\.')}$`));
+    // and the versioned files really load
+    await page.goto('/');
+    await expect(page.getByTestId('app-version')).toContainText(`v${version}`);
+  });
+});

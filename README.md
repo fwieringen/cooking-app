@@ -32,7 +32,8 @@ assets/js/store.js         browser storage, audit trail
 assets/js/app.js           pages and routing
 tests/e2e/                 standard test scenarios (Playwright)
 scripts/serve.js           tiny local web server: only index.html and assets/, only on this computer, same security headers as .htaccess
-.htaccess                  web server settings: security headers, no hidden files (deployed with the site)
+.htaccess                  web server settings: security headers, no hidden files, no stale page/scripts/styles (deployed with the site)
+scripts/build.sh           builds dist/ for deployment; adds ?v=<version> to every asset link in index.html
 ```
 
 ## Run locally

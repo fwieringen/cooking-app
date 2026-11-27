@@ -34,12 +34,22 @@ function resolveRequest(url, base = root) {
   return ok ? { file } : { status: 404 };
 }
 
+// Same as scripts/build.sh: add ?v=<version> to every asset link in index.html
+function versionAssetLinks(html, version) {
+  return html.replace(/(src|href)="(assets\/[^"?]+)"/g, (m, attr, url) => `${attr}="${url}?v=${version}"`);
+}
+const appVersion = () => (fs.readFileSync(path.join(root, 'assets', 'js', 'config.js'), 'utf8').match(/APP_VERSION = '([^']+)'/) || [])[1];
+
 function handler(req, res) {
   const r = resolveRequest(req.url);
   if (r.status) { res.writeHead(r.status, { ...securityHeaders, 'Content-Type': 'text/plain' }); return res.end(r.status === 400 ? 'Bad request' : 'Not found'); }
   fs.readFile(r.file, (err, data) => {
     if (err) { res.writeHead(404, { ...securityHeaders, 'Content-Type': 'text/plain' }); return res.end('Not found'); }
-    res.writeHead(200, { ...securityHeaders, 'Content-Type': types[path.extname(r.file).toLowerCase()] || 'application/octet-stream' });
+    const ext = path.extname(r.file).toLowerCase();
+    const headers = { ...securityHeaders, 'Content-Type': types[ext] || 'application/octet-stream' };
+    if (['.html', '.js', '.css'].includes(ext)) headers['Cache-Control'] = 'no-cache';   // same as .htaccess
+    if (ext === '.html') data = versionAssetLinks(data.toString('utf8'), appVersion());
+    res.writeHead(200, headers);
     res.end(data);
   });
 }
@@ -56,4 +66,4 @@ if (require.main === module) {
   console.log(`Cooking.com demo running at http://localhost:${port}`);
 }
 
-module.exports = { resolveRequest, securityHeaders };
+module.exports = { resolveRequest, versionAssetLinks, securityHeaders };

@@ -22,4 +22,13 @@ Options -Indexes
   # Do not reveal server software (some hosts ignore this for the Server header)
   Header always unset X-Powered-By
   Header unset Server
+
+  # Page, scripts and styles: browsers and caches must check for a newer version on every load
+  # (cheap thanks to the ETag; unchanged files get a short "304 Not Modified"). Without this the
+  # host sends max-age=604800, so returning visitors could run week-old scripts after a release.
+  # Images keep the host's default caching; build.sh adds ?v=<version> to every asset link anyway.
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache"
+    Header unset Expires
+  </FilesMatch>
 </IfModule>
