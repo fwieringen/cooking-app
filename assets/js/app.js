@@ -76,7 +76,7 @@
       ? `<a href="#/account" class="btn btn-ghost" data-testid="nav-account">👤 ${esc(user.firstName)}</a>
          <button class="btn btn-ghost" id="logout-btn" data-testid="nav-logout">Sign out</button>`
       : `<a href="#/register" class="btn btn-outline" data-testid="nav-register">Register</a>
-         <a href="#/login" class="btn btn-primary" data-testid="nav-login">Sign in</a>`;
+         <a href="#/login" class="btn btn-signin" data-testid="nav-login">Sign in</a>`;
     const lo = qs('#logout-btn'); if (lo) lo.onclick = () => { S.logout(); toast('You have been signed out.'); go('#/'); renderChrome(); };
 
     const banner = qs('#env-banner');
