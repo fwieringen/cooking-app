@@ -99,6 +99,13 @@ code { background: var(--sky-100); padding: 1px 5px; border-radius: 4px; }
 .usp { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .usp > div { background: var(--white); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
 .usp span { font-size: 1.8rem; }
+.referral-promo { display: flex; align-items: center; gap: 24px; background: linear-gradient(120deg, var(--hat), var(--navy)); color: var(--white); border-radius: var(--radius); padding: 28px; max-width: 1108px; margin: 0 auto 8px; flex-wrap: wrap; }
+.referral-promo > div:nth-child(2) { flex: 1; min-width: 240px; }
+.referral-promo h2 { color: var(--white); }
+.referral-promo p { margin: 0; opacity: .92; }
+.referral-promo .pill { background: var(--sky); }
+.referral-badge { width: 96px; height: 96px; border-radius: 50%; background: var(--white); color: var(--hat); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; line-height: 1; flex-shrink: 0; }
+.referral-badge small { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
 .partner-cta { display: flex; justify-content: space-between; align-items: center; gap: 20px; background: var(--sky-100); border-radius: var(--radius); margin: 0 auto 40px; padding: 28px; max-width: 1108px; flex-wrap: wrap; }
 
 /* search results */
@@ -187,6 +194,14 @@ input[type=text], input[type=email], input[type=password], input[type=date], inp
 .status { font-weight: 700; font-size: .85rem; text-transform: capitalize; border-radius: 999px; padding: 2px 10px; }
 .status-confirmed { background: #E3F5EB; color: var(--ok); }
 .status-cancelled { background: #FDECEC; color: var(--err); }
+.status-available { background: #E3F5EB; color: var(--ok); }
+.status-used, .status-expired { background: var(--line); color: var(--muted); }
+
+/* referral programme & vouchers */
+.ref-code { display: inline-block; font-size: 1.2rem; letter-spacing: .08em; background: var(--sky-100); color: var(--navy); border: 2px dashed var(--sky); border-radius: 8px; padding: 4px 12px; margin-top: 4px; }
+.voucher-list { list-style: none; padding: 0; margin: 0; }
+.voucher-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.voucher-list li:last-child { border-bottom: 0; }
 .prose h2 { margin-top: 1.2em; }
 
 /* toast */
@@ -233,5 +248,8 @@ input[type=text], input[type=email], input[type=password], input[type=date], inp
   .score-block { justify-content: space-between; }
   .detail-head { flex-direction: column; }
   .thumb-hero { height: 180px; font-size: 4.5rem; }
+  .referral-promo { padding: 20px; gap: 16px; }
+  .referral-promo .btn { width: 100%; }
+  .referral-badge { width: 72px; height: 72px; font-size: 1.4rem; }
   .table th:nth-child(2), .table td:nth-child(2) { display: none; }
 }

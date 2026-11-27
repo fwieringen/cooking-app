@@ -1,7 +1,7 @@
 /* Cooking.com demo – application configuration */
 window.CK_CONFIG = (() => {
-  const APP_VERSION = '1.2.0';
-  const RELEASE_DATE = '2026-11-24';
+  const APP_VERSION = '1.3.0';
+  const RELEASE_DATE = '2026-11-27';
 
   const host = window.location.hostname;
   let environment = 'production';
@@ -18,5 +18,7 @@ window.CK_CONFIG = (() => {
     },
     maxGuests: 12,
     bookingHorizonDays: 90,
+    referralDiscountPercent: 10,  // voucher for the referrer when a new client registers with their code
+    voucherValidityDays: 365,
   };
 })();

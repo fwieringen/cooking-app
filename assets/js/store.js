@@ -11,6 +11,7 @@ window.CK_STORE = (() => {
     reservations: [],
     payments: [],           // only token + last 4 digits, never the full card number
     applications: [],       // restaurant sign-ups
+    vouchers: [],           // referral discount vouchers
     audit: [],              // simple audit trail of important events
   });
 
@@ -87,6 +88,22 @@ window.CK_STORE = (() => {
 
     // ---- payments
     addPayment(p) { const db = load(); db.payments.push(p); save(); log('payment_' + p.status, { paymentId: p.id }); return p; },
+
+    // ---- referrals & vouchers
+    findUserByReferralCode(code) { return load().users.find(u => u.referralCode && u.referralCode === String(code).trim().toUpperCase()); },
+    ensureReferralCode(userId) {
+      const u = load().users.find(x => x.id === userId);
+      if (u && !u.referralCode) { u.referralCode = id('REF'); save(); }
+      return u && u.referralCode;
+    },
+    referralsBy(userId) { return load().users.filter(u => u.referredBy === userId); },
+    issueVoucher(v) { const db = load(); db.vouchers.push(v); save(); log('voucher_issued', { voucherId: v.id, to: v.userId, referredUserId: v.referredUserId }); return v; },
+    vouchersFor(userId) { return load().vouchers.filter(v => v.userId === userId); },
+    redeemVoucher(voucherId, paymentId) {
+      const v = load().vouchers.find(x => x.id === voucherId);
+      if (v) { v.status = 'redeemed'; v.redeemedAt = now(); v.paymentId = paymentId; save(); log('voucher_redeemed', { voucherId, paymentId }); }
+      return v;
+    },
 
     // ---- restaurant applications
     addApplication(a) { const db = load(); db.applications.push(a); save(); log('restaurant_application', { applicationId: a.id }); return a; },

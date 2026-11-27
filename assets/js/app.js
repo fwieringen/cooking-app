@@ -141,6 +141,15 @@
         <h2>Explore by city</h2>
         <div class="city-grid">${cityCards}</div>
       </section>
+      <section class="container section referral-promo" data-testid="referral-promo">
+        <div class="referral-badge" aria-hidden="true">${C.referralDiscountPercent}%<small>off</small></div>
+        <div>
+          <span class="pill">Invite a friend</span>
+          <h2>Bring a friend, get ${C.referralDiscountPercent}% off your next package deal</h2>
+          <p>Share your personal referral code. When a friend creates a Cooking.com account with it, you receive a voucher for ${C.referralDiscountPercent}% off a package deal of your choice.</p>
+        </div>
+        <a href="${user ? '#/account' : '#/register'}" class="btn btn-primary btn-lg" data-testid="referral-cta">${user ? 'Get my referral code' : 'Join and start inviting'}</a>
+      </section>
       <section class="container section">
         <div class="section-head"><h2>Package deals</h2><a href="#/deals">See all deals →</a></div>
         <p class="muted">A fixed price for a complete culinary experience — dinner, drinks and sometimes a hotel or taxi.</p>
@@ -357,6 +366,7 @@
             <div><span>Date</span><strong>${fmtDate(res.date)}</strong></div>
             <div><span>Time</span><strong>${esc(res.time)}</strong></div>
             <div><span>Guests</span><strong>${res.guests}</strong></div>
+            ${payment && payment.voucherId ? `<div data-testid="confirmation-voucher"><span>Voucher</span><strong>${esc(payment.voucherId)} · −${money(payment.discount, payment.currency)}</strong></div>` : ''}
             ${payment ? `<div><span>Paid</span><strong>${money(payment.amount, payment.currency)} · ${esc(payment.methodLabel)}</strong></div>` : ''}
           </div>
           <p class="muted small">A confirmation e-mail has been sent. For privacy reasons (GDPR) it contains no personal details.</p>
@@ -400,6 +410,7 @@
   function checkoutForm(d) {
     const u = S.currentUser();
     const saved = (u.paymentMethods || []).map(pm => `<option value="saved:${pm.token}">${esc(pm.brand)} •••• ${esc(pm.last4)} (saved)</option>`).join('');
+    const vouchers = usableVouchers(u);
     return `
       <form id="checkout" novalidate data-testid="checkout-form">
         <label class="field"><span>Date</span><input type="date" name="date" min="${todayISO()}" max="${addDaysISO(C.bookingHorizonDays)}" value="${addDaysISO(7)}" data-testid="deal-date"></label>
@@ -419,15 +430,27 @@
           </div>
           <label class="check"><input type="checkbox" name="saveCard"> Save this card for next time (stored as a token by our payment provider)</label>
         </div>
+        ${vouchers.length ? `<label class="field"><span>Discount voucher</span><select name="voucher" data-testid="pay-voucher">
+          <option value="">No voucher</option>
+          ${vouchers.map(v => `<option value="${esc(v.id)}">${v.percent}% off · ${esc(v.id)} (valid until ${fmtDate(v.validUntil.slice(0, 10))})</option>`).join('')}</select></label>` : ''}
         <p class="muted small">🔒 Payments are processed by our payment service provider. Cooking.com never stores your full card number.</p>
         <button class="btn btn-primary btn-block" type="submit" data-testid="pay-submit">Pay ${money(d.price, d.currency || D.currencyFor(restaurant(d.restaurantId).city))}</button>
       </form>`;
   }
 
+  // Vouchers the signed-in user can still use, and the price after applying one
+  const usableVouchers = (u) => S.vouchersFor(u.id).filter(v => V.voucherUsable(v, u.id));
+  const discounted = (price, voucher) => voucher ? Math.round(price * (100 - voucher.percent)) / 100 : price;
+
   function bindCheckout(d, r, cur) {
     const f = qs('#checkout');
     const toggle = () => { qs('#card-fields').hidden = f.method.value !== 'card'; };
     f.method.onchange = toggle; toggle();
+    const chosenVoucher = () => f.voucher && f.voucher.value ? S.vouchersFor(S.currentUser().id).find(v => v.id === f.voucher.value) : null;
+    if (f.voucher) f.voucher.onchange = () => {
+      const v = chosenVoucher();
+      qs('[data-testid="pay-submit"]', f).textContent = 'Pay ' + money(discounted(d.price, v), cur) + (v ? ` (was ${money(d.price, cur)})` : '');
+    };
     f.onsubmit = (e) => {
       e.preventDefault(); clearErrors(f);
       let ok = true;
@@ -442,6 +465,9 @@
         if (!V.cardExpiry(f.cardExpiry.value)) { fieldError(f, 'cardExpiry', 'Enter a valid expiry date that is not in the past.'); ok = false; }
         if (!V.cvc(f.cardCvc.value)) { fieldError(f, 'cardCvc', 'Enter the 3 or 4 digit security code.'); ok = false; }
       }
+      // Voucher control: re-check at the moment of payment (owner, not used before, not expired)
+      const voucher = chosenVoucher();
+      if (f.voucher && f.voucher.value && !V.voucherUsable(voucher, S.currentUser().id)) { fieldError(f, 'voucher', 'This voucher can no longer be used.'); ok = false; }
       if (!ok) return;
 
       const u = S.currentUser();
@@ -459,7 +485,10 @@
         id: S.id('CK'), userId: u.id, restaurantId: r.id, date: f.date.value, time: f.time.value, guests,
         dealId: d.id, status: 'confirmed', channel: 'web', createdAt: S.now(),
       });
-      const pay = S.addPayment({ id: S.id('PAY'), reservationId: res.id, userId: u.id, amount: d.price, currency: cur, method: m.startsWith('saved:') ? 'card' : m, methodLabel, token, last4, status: 'authorised', at: S.now() });
+      const amount = discounted(d.price, voucher);
+      const pay = S.addPayment({ id: S.id('PAY'), reservationId: res.id, userId: u.id, amount, currency: cur, method: m.startsWith('saved:') ? 'card' : m, methodLabel, token, last4, status: 'authorised', at: S.now(),
+        ...(voucher ? { listPrice: d.price, discount: Math.round((d.price - amount) * 100) / 100, voucherId: voucher.id } : {}) });
+      if (voucher) S.redeemVoucher(voucher.id, pay.id);
       res.paymentId = pay.id; S.save();
       go('#/reservation/' + res.id);
     };
@@ -509,6 +538,7 @@
           <label class="field"><span>Mobile phone (for SMS/WhatsApp updates)</span><input name="phone" autocomplete="tel" placeholder="+31 6 12345678" data-testid="reg-phone"></label>
           <label class="field"><span>Username</span><input name="username" autocomplete="username" data-testid="reg-username"></label>
           <label class="field"><span>Password <small class="muted">(at least 10 characters, with a letter and a digit)</small></span><input type="password" name="password" autocomplete="new-password" data-testid="reg-password"></label>
+          <label class="field"><span>Referral code <small class="muted">(optional — did a friend invite you?)</small></span><input name="referral" placeholder="REF-XXXXXX" autocomplete="off" value="${esc(draft.ref || '')}" data-testid="reg-referral"></label>
           <label class="check field"><input type="checkbox" name="terms" data-testid="reg-terms"> I accept the <a href="#/about">terms of use</a></label>
           <label class="check field"><input type="checkbox" name="privacy" data-testid="reg-privacy"> I accept the <a href="#/about">privacy statement</a></label>
           <button class="btn btn-primary btn-block" data-testid="reg-details-submit">Continue</button>
@@ -547,7 +577,7 @@
       if (!V.email(email)) return fieldError(f, 'email', 'Enter a valid e-mail address.');
       if (S.findUserByEmail(email)) return fieldError(f, 'email', 'An account with this e-mail address already exists. Please sign in.');
       const token = S.startVerification(email, 'consumer');
-      sessionSet('ck_reg', { email, token });
+      sessionSet('ck_reg', { email, token, ref: (p.ref || draft.ref || '').toUpperCase() });
       go('#/register?step=verify');
     };
     if (step === 'verify') qs('#verify-link').onclick = () => {
@@ -568,10 +598,17 @@
         if (!V.password(v.password)) { fieldError(f, 'password', 'At least 10 characters, including a letter and a digit.'); ok = false; }
         if (!f.terms.checked) { fieldError(f, 'terms', 'You must accept the terms of use.'); ok = false; }
         if (!f.privacy.checked) { fieldError(f, 'privacy', 'You must accept the privacy statement.'); ok = false; }
+        // Referral control: optional, but if entered it must be a valid code of an existing customer
+        let referrerId = null;
+        if (V.required(v.referral)) {
+          const referrer = V.referralCode(v.referral) && S.findUserByReferralCode(v.referral);
+          if (!referrer) { fieldError(f, 'referral', 'This referral code is not valid. Check the code or leave the field empty.'); ok = false; }
+          else referrerId = referrer.id;
+        }
         if (!ok) return;
         const pwHash = await S.hash(v.password);
-        delete v.password; delete v.terms; delete v.privacy;
-        sessionSet('ck_reg', { ...draft, ...v, pwHash, acceptedTermsAt: S.now() });
+        delete v.password; delete v.terms; delete v.privacy; delete v.referral;
+        sessionSet('ck_reg', { ...draft, ...v, pwHash, referrerId, acceptedTermsAt: S.now() });
         go('#/register?step=taste');
       };
     }
@@ -582,12 +619,19 @@
     if (step === 'payment') {
       if (!draft.taste) return go('#/register');
       const finish = (paymentMethods = []) => {
+        const referrer = draft.referrerId && S.db.users.find(x => x.id === draft.referrerId);
         const u = S.addUser({
           id: S.id('U'), email: draft.email, emailVerified: true, firstName: draft.firstName, lastName: draft.lastName,
           street: draft.street, postcode: draft.postcode, city: draft.city, country: draft.country, phone: draft.phone,
           username: draft.username, pwHash: draft.pwHash, acceptedTermsAt: draft.acceptedTermsAt, taste: draft.taste,
-          paymentMethods, createdAt: S.now(),
+          paymentMethods, referralCode: S.id('REF'), referredBy: referrer ? referrer.id : null, createdAt: S.now(),
         });
+        // Reward the existing customer who brought in this new client
+        if (referrer) {
+          const until = new Date(); until.setDate(until.getDate() + C.voucherValidityDays);
+          S.issueVoucher({ id: S.id('VCH'), userId: referrer.id, percent: C.referralDiscountPercent, reason: 'referral',
+            referredUserId: u.id, status: 'issued', issuedAt: S.now(), validUntil: until.toISOString() });
+        }
         sessionStorageRemove('ck_reg'); S.login(u.id); renderChrome();
         app.innerHTML = `<div class="container narrow section"><div class="confirm" data-testid="reg-done"><div class="confirm-icon">✓</div>
           <h1>Welcome to Cooking.com, ${esc(u.firstName)}!</h1>
@@ -634,6 +678,11 @@
     const u = S.currentUser();
     if (!u) { sessionStorageSet('ck_return', '#/account'); return go('#/login'); }
     const res = S.reservationsFor(u.id);
+    const refCode = S.ensureReferralCode(u.id);   // accounts created before v1.3.0 get a code on first visit
+    const inviteLink = location.origin + location.pathname + '#/register?ref=' + encodeURIComponent(refCode);
+    const friends = S.referralsBy(u.id).length;
+    const vouchers = S.vouchersFor(u.id);
+    const voucherState = (v) => v.status === 'redeemed' ? 'used' : V.voucherUsable(v, u.id) ? 'available' : 'expired';
     const rows = res.map(r => {
       const rest = restaurant(r.restaurantId); const past = r.date < todayISO();
       return `<tr data-testid="my-reservation" data-id="${r.id}">
@@ -664,10 +713,26 @@
               <h2>Saved payment methods</h2>
               <p data-testid="saved-cards">${(u.paymentMethods || []).map(pm => `${esc(pm.brand)} •••• ${esc(pm.last4)}`).join('<br>') || '<span class="muted">None</span>'}</p>
             </section>
+            <section class="panel" data-testid="referral-panel">
+              <h2>Invite friends</h2>
+              <p class="muted small">For every friend who creates an account with your code, you get ${C.referralDiscountPercent}% off a package deal.</p>
+              <p>Your referral code<br><strong class="ref-code" data-testid="referral-code">${esc(refCode)}</strong></p>
+              <label class="field"><span>Invite link</span><input readonly value="${esc(inviteLink)}" data-testid="referral-link" onfocus="this.select()"></label>
+              <button type="button" class="btn btn-outline btn-sm" id="copy-invite" data-testid="referral-copy">Copy invite link</button>
+              <p class="small" data-testid="referral-count">Friends joined: <strong>${friends}</strong></p>
+              <h3>My vouchers</h3>
+              <ul class="voucher-list" data-testid="my-vouchers">${vouchers.length
+                ? vouchers.map(v => `<li data-testid="voucher" data-id="${esc(v.id)}"><strong>${v.percent}% off</strong> package deal <small class="muted">${esc(v.id)} · valid until ${fmtDate(v.validUntil.slice(0, 10))}</small> <span class="status status-${voucherState(v)}" data-testid="voucher-status">${voucherState(v)}</span></li>`).join('')
+                : '<li class="muted" data-testid="no-vouchers">No vouchers yet. Invite a friend to earn one.</li>'}</ul>
+            </section>
           </aside>
         </div>
       </div>`;
     qsa('[data-cancel]').forEach(b => b.onclick = () => { S.cancelReservation(b.dataset.cancel); toast('Your reservation has been cancelled.'); viewAccount(); });
+    qs('#copy-invite').onclick = async () => {
+      try { await navigator.clipboard.writeText(inviteLink); toast('Invite link copied.'); }
+      catch (e) { qs('[data-testid="referral-link"]').select(); toast('Select the link and copy it manually.', 'info'); }
+    };
   }
 
   // ---- restaurant sign-up (partner): e-mail → details & classification → automated validation → contract → active
